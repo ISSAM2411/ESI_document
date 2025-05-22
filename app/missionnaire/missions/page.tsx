@@ -13,23 +13,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { Card } from "@/components/ui/card"
-
-// Types
-interface Mission {
-  id: string
-  demandeur: string
-  missionnaire: string
-  destination: string
-  debut: string
-  fin: string
-  statut: string
-  objet?: string
-  transport?: string
-  avance?: string
-  commentaires?: string
-  dateCreation?: string
-  creePar?: string
-}
+import { dataService, type Mission } from "@/services/data-service"
 
 export default function MissionnaireMissions() {
   // Données simulées pour un missionnaire
@@ -40,57 +24,25 @@ export default function MissionnaireMissions() {
   }
 
   // État pour les missions
-  const [missions, setMissions] = useState<Mission[]>([
-    {
-      id: "OM-2025-003",
-      demandeur: "Département Systèmes d'Information",
-      missionnaire: "Karim Messaoudi",
-      destination: "Annaba - École Supérieure de Technologie",
-      debut: "18/04/2025",
-      fin: "20/04/2025",
-      statut: "En cours",
-    },
-    {
-      id: "OM-2025-001",
-      demandeur: "Département Recherche et Innovation",
-      missionnaire: "Karim Messaoudi",
-      destination: "Oran - Université des Sciences et de la Technologie",
-      debut: "12/04/2025",
-      fin: "15/04/2025",
-      statut: "Approuvée",
-    },
-  ])
+  const [missions, setMissions] = useState<Mission[]>([])
 
   // État pour les filtres
   const [searchQuery, setSearchQuery] = useState("")
   const [destinationFilter, setDestinationFilter] = useState("all")
   const [dateFilter, setDateFilter] = useState({ debut: "", fin: "" })
   const [activeTab, setActiveTab] = useState("toutes")
-  const [filteredMissions, setFilteredMissions] = useState<Mission[]>(missions)
+  const [filteredMissions, setFilteredMissions] = useState<Mission[]>([])
   const [activeFilters, setActiveFilters] = useState<string[]>([])
   const [showFilters, setShowFilters] = useState(false)
 
   // Toast
   const { toast } = useToast()
 
-  // Effet pour charger les missions depuis localStorage
+  // Effet pour charger les missions depuis le service
   useEffect(() => {
-    try {
-      const storedMissions = localStorage.getItem("missionnaireMissions")
-      if (storedMissions) {
-        const parsedMissions = JSON.parse(storedMissions)
-        setMissions((prevMissions) => {
-          // Fusionner les missions stockées avec les missions par défaut
-          // en évitant les doublons basés sur l'ID
-          const existingIds = new Set(prevMissions.map((mission) => mission.id))
-          const newMissions = parsedMissions.filter((mission: Mission) => !existingIds.has(mission.id))
-          return [...newMissions, ...prevMissions]
-        })
-      }
-    } catch (error) {
-      console.error("Erreur lors du chargement des missions:", error)
-    }
-  }, [])
+    const userMissions = dataService.getMissionsByEmail(user.email)
+    setMissions(userMissions)
+  }, [user.email])
 
   // Effet pour filtrer les missions
   useEffect(() => {

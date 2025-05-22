@@ -6,274 +6,216 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Calendar, Upload } from "lucide-react"
-import Link from "next/link"
+import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
-import { LoadingScreen } from "@/components/loading-screen"
+import { dataService } from "@/services/data-service"
 
-export default function NewMissionRequest() {
+export default function NewMission() {
+  const router = useRouter()
+  const { toast } = useToast()
+
   // Données simulées pour un missionnaire
   const user = {
     name: "Karim Messaoudi",
-    email: "karim.messaoudi@esi.dz",
+    email: "missionary@esi.dz",
     role: "missionnaire",
-    departement: "Département Recherche et Innovation",
-    fonction: "Chercheur",
   }
 
   // État du formulaire
   const [formData, setFormData] = useState({
+    demandeur: "",
     destination: "",
-    dateDebut: "",
-    dateFin: "",
+    debut: "",
+    fin: "",
     objet: "",
     transport: "",
-    justification: "",
+    avance: "",
     commentaires: "",
   })
 
-  // État de chargement
-  const [isLoading, setIsLoading] = useState(false)
-
-  const router = useRouter()
-  const { toast } = useToast()
-
   // Gérer les changements dans le formulaire
   const handleChange = (field: string, value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }))
+    setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
   // Soumettre le formulaire
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
 
-    // Créer un nouvel objet mission
+    // Validation simple
+    if (!formData.demandeur || !formData.destination || !formData.debut || !formData.fin) {
+      toast({
+        title: "Erreur de validation",
+        description: "Veuillez remplir tous les champs obligatoires.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Formater les dates
+    const formatDate = (dateString: string) => {
+      const date = new Date(dateString)
+      return `${date.getDate().toString().padStart(2, "0")}/${(date.getMonth() + 1).toString().padStart(2, "0")}/${date.getFullYear()}`
+    }
+
+    // Créer une nouvelle mission
+    const today = new Date()
+    const formattedToday = `${today.getDate().toString().padStart(2, "0")}/${(today.getMonth() + 1).toString().padStart(2, "0")}/${today.getFullYear()}`
+
     const newMission = {
-      id: `OM-${new Date().getFullYear()}-${Math.floor(Math.random() * 1000)
-        .toString()
-        .padStart(3, "0")}`,
-      demandeur: user.departement,
+      id: "", // id will be generated in dataService.addMission if empty
+      demandeur: formData.demandeur,
       missionnaire: user.name,
       destination: formData.destination,
-      debut: formatDate(formData.dateDebut),
-      fin: formatDate(formData.dateFin),
+      debut: formatDate(formData.debut),
+      fin: formatDate(formData.fin),
       statut: "En attente",
       objet: formData.objet,
       transport: formData.transport,
-      justification: formData.justification,
+      avance: formData.avance,
       commentaires: formData.commentaires,
-      dateCreation: new Date().toLocaleDateString("fr-FR"),
+      dateCreation: formattedToday,
       creePar: user.name,
+      email: user.email,
     }
 
-    // Simuler un délai d'envoi
-    setTimeout(() => {
-      try {
-        // Récupérer les missions existantes du localStorage ou initialiser un tableau vide
-        const existingMissions = JSON.parse(localStorage.getItem("missionnaireMissions") || "[]")
+    // Ajouter la mission au service
+    dataService.addMission(newMission)
 
-        // Ajouter la nouvelle mission
-        const updatedMissions = [newMission, ...existingMissions]
+    // Notification de succès
+    toast({
+      title: "Demande soumise",
+      description: "Votre demande de mission a été soumise avec succès.",
+    })
 
-        // Sauvegarder dans localStorage
-        localStorage.setItem("missionnaireMissions", JSON.stringify(updatedMissions))
-
-        // Afficher un toast de succès
-        toast({
-          title: "Demande soumise",
-          description: `Votre demande de mission (${newMission.id}) a été soumise avec succès.`,
-        })
-
-        // Rediriger vers la liste des missions
-        router.push("/missionnaire/missions")
-      } catch (error) {
-        toast({
-          title: "Erreur",
-          description: "Une erreur est survenue lors de la soumission de votre demande.",
-          variant: "destructive",
-        })
-        setIsLoading(false)
-      }
-    }, 2000)
-  }
-
-  // Formater la date pour l'affichage
-  const formatDate = (dateString: string) => {
-    if (!dateString) return ""
-    const date = new Date(dateString)
-    return date.toLocaleDateString("fr-FR")
+    // Redirection
+    router.push("/missionnaire/missions")
   }
 
   return (
     <DashboardLayout role="missionnaire" user={user}>
-      {isLoading && <LoadingScreen message="Soumission de votre demande..." />}
       <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Button variant="outline" size="icon" asChild>
-            <Link href="/missionnaire/missions">
-              <ArrowLeft className="h-4 w-4" />
-              <span className="sr-only">Retour</span>
-            </Link>
-          </Button>
+        <div>
           <h1 className="text-2xl font-bold">Demande d&apos;ordre de mission</h1>
+          <p className="text-muted-foreground">
+            Remplissez le formulaire ci-dessous pour demander un ordre de mission.
+          </p>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <Card>
-            <CardHeader>
-              <CardTitle>Informations personnelles</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="nom">Nom complet</Label>
-                  <Input id="nom" value={user.name} readOnly />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" value={user.email} readOnly />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="departement">Département</Label>
-                  <Input id="departement" value={user.departement} readOnly />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="fonction">Fonction</Label>
-                  <Input id="fonction" value={user.fonction} readOnly />
-                </div>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="demandeur">Département demandeur</Label>
+                <Select value={formData.demandeur} onValueChange={(value) => handleChange("demandeur", value)} required>
+                  <SelectTrigger id="demandeur">
+                    <SelectValue placeholder="Sélectionnez un département" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Département Systèmes d'Information">Systèmes d'Information</SelectItem>
+                    <SelectItem value="Département Recherche et Innovation">Recherche et Innovation</SelectItem>
+                    <SelectItem value="Département Intelligence Artificielle">Intelligence Artificielle</SelectItem>
+                    <SelectItem value="Département Réseaux">Réseaux</SelectItem>
+                    <SelectItem value="Département Génie Logiciel">Génie Logiciel</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            </CardContent>
-          </Card>
 
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle>Informations de la mission</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
+              <div>
                 <Label htmlFor="destination">Destination</Label>
                 <Input
                   id="destination"
-                  placeholder="Entrez la destination"
+                  placeholder="Ville - Établissement"
                   value={formData.destination}
                   onChange={(e) => handleChange("destination", e.target.value)}
                   required
                 />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="date-debut">Date de début</Label>
-                  <div className="relative">
-                    <Input
-                      id="date-debut"
-                      type="date"
-                      value={formData.dateDebut}
-                      onChange={(e) => handleChange("dateDebut", e.target.value)}
-                      required
-                    />
-                    <Calendar className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
-                  </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="debut">Date de début</Label>
+                  <Input
+                    id="debut"
+                    type="date"
+                    value={formData.debut}
+                    onChange={(e) => handleChange("debut", e.target.value)}
+                    required
+                  />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="date-fin">Date de fin</Label>
-                  <div className="relative">
-                    <Input
-                      id="date-fin"
-                      type="date"
-                      value={formData.dateFin}
-                      onChange={(e) => handleChange("dateFin", e.target.value)}
-                      required
-                    />
-                    <Calendar className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
-                  </div>
+                <div>
+                  <Label htmlFor="fin">Date de fin</Label>
+                  <Input
+                    id="fin"
+                    type="date"
+                    value={formData.fin}
+                    onChange={(e) => handleChange("fin", e.target.value)}
+                    required
+                  />
                 </div>
               </div>
-              <div className="space-y-2">
+            </div>
+
+            <div className="space-y-4">
+              <div>
                 <Label htmlFor="objet">Objet de la mission</Label>
                 <Textarea
                   id="objet"
-                  placeholder="Décrivez l'objet de la mission"
-                  className="min-h-[100px]"
+                  placeholder="Décrivez l'objet de votre mission..."
                   value={formData.objet}
                   onChange={(e) => handleChange("objet", e.target.value)}
-                  required
+                  className="min-h-[80px]"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="justification">Justification de la mission</Label>
-                <Textarea
-                  id="justification"
-                  placeholder="Justifiez la nécessité de cette mission"
-                  className="min-h-[100px]"
-                  value={formData.justification}
-                  onChange={(e) => handleChange("justification", e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="transport">Type de transport</Label>
-                <Select value={formData.transport} onValueChange={(value) => handleChange("transport", value)} required>
+
+              <div>
+                <Label htmlFor="transport">Moyen de transport</Label>
+                <Select value={formData.transport} onValueChange={(value) => handleChange("transport", value)}>
                   <SelectTrigger id="transport">
-                    <SelectValue placeholder="Sélectionnez un type de transport" />
+                    <SelectValue placeholder="Sélectionnez un moyen de transport" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Voiture">Voiture</SelectItem>
-                    <SelectItem value="Train">Train</SelectItem>
+                    <SelectItem value="Véhicule de service">Véhicule de service</SelectItem>
+                    <SelectItem value="Transport en commun">Transport en commun</SelectItem>
                     <SelectItem value="Avion">Avion</SelectItem>
-                    <SelectItem value="Autre">Autre</SelectItem>
+                    <SelectItem value="Véhicule personnel">Véhicule personnel</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label>Pièce jointe (optionnel)</Label>
-                <div className="border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center">
-                  <Upload className="h-8 w-8 text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground mb-1">Glissez-déposez un fichier ici ou</p>
-                  <Button variant="outline" size="sm">
-                    Parcourir
-                  </Button>
-                </div>
+
+              <div>
+                <Label htmlFor="avance">Avance demandée (DZD)</Label>
+                <Input
+                  id="avance"
+                  type="number"
+                  placeholder="0"
+                  value={formData.avance}
+                  onChange={(e) => handleChange("avance", e.target.value)}
+                />
               </div>
-              <div className="space-y-2">
+
+              <div>
                 <Label htmlFor="commentaires">Commentaires (optionnel)</Label>
                 <Textarea
                   id="commentaires"
-                  placeholder="Informations complémentaires"
-                  className="min-h-[100px]"
+                  placeholder="Ajoutez des commentaires si nécessaire..."
                   value={formData.commentaires}
                   onChange={(e) => handleChange("commentaires", e.target.value)}
+                  className="min-h-[80px]"
                 />
               </div>
-            </CardContent>
-            <CardFooter className="flex justify-end gap-2">
-              <Button variant="outline" asChild>
-                <Link href="/missionnaire/missions">Annuler</Link>
-              </Button>
-              <Button
-                type="submit"
-                disabled={
-                  isLoading ||
-                  !formData.destination ||
-                  !formData.dateDebut ||
-                  !formData.dateFin ||
-                  !formData.objet ||
-                  !formData.justification ||
-                  !formData.transport
-                }
-              >
-                {isLoading ? "Soumission en cours..." : "Soumettre la demande"}
-              </Button>
-            </CardFooter>
-          </Card>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-4">
+            <Button type="button" variant="outline" onClick={() => router.back()}>
+              Annuler
+            </Button>
+            <Button type="submit">Soumettre la demande</Button>
+          </div>
         </form>
       </div>
     </DashboardLayout>

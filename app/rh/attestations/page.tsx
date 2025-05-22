@@ -19,18 +19,7 @@ import type { DateRange } from "react-day-picker"
 import { format, isWithinInterval, parse } from "date-fns"
 import { fr } from "date-fns/locale"
 import { exportToExcel, formatAttestationsForExcel } from "@/utils/excel-export"
-
-// Types
-interface Attestation {
-  id: string
-  date: string
-  demandeur: string
-  matricule: string
-  categorie: string
-  motif: string
-  statut: string
-  raisonRejet?: string
-}
+import { dataService, type Attestation } from "@/services/data-service"
 
 export default function RHAttestations() {
   // Données simulées pour un RH
@@ -40,104 +29,9 @@ export default function RHAttestations() {
     role: "rh",
   }
 
-  // Données simulées pour les attestations
-  const attestationsInitiales = [
-    {
-      id: "ATT-2025-001",
-      date: "15/03/2025",
-      demandeur: "Ahmed Benali",
-      matricule: "EMP-2010-042",
-      categorie: "Employé actif",
-      motif: "Démarche administrative",
-      statut: "Complétée",
-    },
-    {
-      id: "ATT-2025-002",
-      date: "18/03/2025",
-      demandeur: "Samira Hadjri",
-      matricule: "EMP-2015-103",
-      categorie: "Employé actif",
-      motif: "Démarche bancaire",
-      statut: "En cours",
-    },
-    {
-      id: "ATT-2025-003",
-      date: "20/03/2025",
-      demandeur: "Karim Mezouar",
-      matricule: "EMP-2018-027",
-      categorie: "Employé actif",
-      motif: "Demande de visa",
-      statut: "En attente",
-    },
-    {
-      id: "ATT-2025-004",
-      date: "22/03/2025",
-      demandeur: "Leila Benmansour",
-      matricule: "EMP-2012-078",
-      categorie: "Employé actif",
-      motif: "Démarche administrative",
-      statut: "En attente",
-    },
-    {
-      id: "ATT-2025-005",
-      date: "25/03/2025",
-      demandeur: "Omar Zerrouk",
-      matricule: "RET-1980-015",
-      categorie: "Retraité",
-      motif: "Démarche administrative",
-      statut: "En cours",
-    },
-    {
-      id: "ATT-2025-006",
-      date: "27/03/2025",
-      demandeur: "Yasmine Kaddour",
-      matricule: "STG-2024-003",
-      categorie: "Stagiaire",
-      motif: "Démarche administrative",
-      statut: "Complétée",
-    },
-    {
-      id: "ATT-2025-007",
-      date: "29/03/2025",
-      demandeur: "Nadir Hamidi",
-      matricule: "EMP-2013-056",
-      categorie: "Employé actif",
-      motif: "Démarche bancaire",
-      statut: "Rejetée",
-      raisonRejet: "Informations incomplètes",
-    },
-    {
-      id: "ATT-2025-008",
-      date: "02/04/2025",
-      demandeur: "Fatima Zerrouki",
-      matricule: "EMP-2009-031",
-      categorie: "Employé actif",
-      motif: "Démarche administrative",
-      statut: "En attente",
-    },
-    {
-      id: "ATT-2025-009",
-      date: "05/04/2025",
-      demandeur: "Rachid Mebarki",
-      matricule: "RET-1985-007",
-      categorie: "Retraité",
-      motif: "Autre",
-      statut: "Complétée",
-    },
-    {
-      id: "ATT-2025-010",
-      date: "08/04/2025",
-      demandeur: "Meriem Belkacem",
-      matricule: "EMP-2016-089",
-      categorie: "Employé actif",
-      motif: "Démarche bancaire",
-      statut: "En cours",
-    },
-  ]
-
   // État pour les attestations
-  const [attestations, setAttestations] = useState<Attestation[]>(attestationsInitiales)
-  const [filteredAttestations, setFilteredAttestations] = useState<Attestation[]>(attestationsInitiales)
+  const [attestations, setAttestations] = useState<Attestation[]>([])
+  const [filteredAttestations, setFilteredAttestations] = useState<Attestation[]>([])
   const [activeTab, setActiveTab] = useState("toutes")
 
   // État pour les filtres
@@ -151,6 +45,12 @@ export default function RHAttestations() {
 
   // Toast
   const { toast } = useToast()
+
+  // Charger les attestations depuis le service
+  useEffect(() => {
+    const allAttestations = dataService.getAllAttestations()
+    setAttestations(allAttestations)
+  }, [])
 
   // Effet pour filtrer les attestations
   useEffect(() => {
@@ -226,11 +126,9 @@ export default function RHAttestations() {
 
   // Fonction pour approuver une attestation
   const handleApproveAttestation = (id: string) => {
-    setAttestations(
-      attestations.map((attestation) =>
-        attestation.id === id ? { ...attestation, statut: "Complétée" } : attestation,
-      ),
-    )
+    dataService.updateAttestation(id, { statut: "Complétée" })
+    setAttestations(dataService.getAllAttestations())
+
     toast({
       title: "Attestation approuvée",
       description: `L'attestation ${id} a été approuvée avec succès.`,
@@ -239,11 +137,9 @@ export default function RHAttestations() {
 
   // Fonction pour rejeter une attestation
   const handleRejectAttestation = (id: string, reason: string) => {
-    setAttestations(
-      attestations.map((attestation) =>
-        attestation.id === id ? { ...attestation, statut: "Rejetée", raisonRejet: reason } : attestation,
-      ),
-    )
+    dataService.updateAttestation(id, { statut: "Rejetée", raisonRejet: reason })
+    setAttestations(dataService.getAllAttestations())
+
     toast({
       title: "Attestation rejetée",
       description: `L'attestation ${id} a été rejetée.`,
@@ -252,9 +148,9 @@ export default function RHAttestations() {
 
   // Fonction pour mettre en cours une attestation
   const handleProcessAttestation = (id: string) => {
-    setAttestations(
-      attestations.map((attestation) => (attestation.id === id ? { ...attestation, statut: "En cours" } : attestation)),
-    )
+    dataService.updateAttestation(id, { statut: "En cours" })
+    setAttestations(dataService.getAllAttestations())
+
     toast({
       title: "Attestation en cours",
       description: `L'attestation ${id} est maintenant en cours de traitement.`,

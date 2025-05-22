@@ -14,23 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
-
-// Types
-interface Mission {
-  id: string
-  demandeur: string
-  missionnaire: string
-  destination: string
-  debut: string
-  fin: string
-  statut: string
-  objet?: string
-  transport?: string
-  avance?: string
-  commentaires?: string
-  dateCreation?: string
-  creePar?: string
-}
+import { dataService, type Mission } from "@/services/data-service"
 
 export default function SGMissions() {
   // Données simulées pour un SG
@@ -41,53 +25,7 @@ export default function SGMissions() {
   }
 
   // État pour les missions
-  const [missions, setMissions] = useState<Mission[]>([
-    {
-      id: "OM-2025-014",
-      demandeur: "Département Réseaux",
-      missionnaire: "Yacine Bouaziz",
-      destination: "Annaba - Centre de Données",
-      debut: "25/04/2025",
-      fin: "27/04/2025",
-      statut: "Approuvée",
-    },
-    {
-      id: "OM-2025-009",
-      demandeur: "Département Intelligence Artificielle",
-      missionnaire: "Leila Benmansour",
-      destination: "Oran - Technopole",
-      debut: "22/04/2025",
-      fin: "24/04/2025",
-      statut: "En cours",
-    },
-    {
-      id: "OM-2025-003",
-      demandeur: "Département Systèmes d'Information",
-      missionnaire: "Karim Messaoudi",
-      destination: "Annaba - École Supérieure de Technologie",
-      debut: "18/04/2025",
-      fin: "20/04/2025",
-      statut: "En cours",
-    },
-    {
-      id: "OM-2025-011",
-      demandeur: "Département Génie Logiciel",
-      missionnaire: "Nadir Hamidi",
-      destination: "Blida - École Nationale Polytechnique",
-      debut: "15/04/2025",
-      fin: "16/04/2025",
-      statut: "En attente",
-    },
-    {
-      id: "OM-2025-001",
-      demandeur: "Département Recherche et Innovation",
-      missionnaire: "Karim Messaoudi",
-      destination: "Oran - Université des Sciences et de la Technologie",
-      debut: "12/04/2025",
-      fin: "15/04/2025",
-      statut: "Approuvée",
-    },
-  ])
+  const [missions, setMissions] = useState<Mission[]>([])
 
   // État pour les filtres
   const [searchQuery, setSearchQuery] = useState("")
@@ -95,30 +33,17 @@ export default function SGMissions() {
   const [destinationFilter, setDestinationFilter] = useState("all")
   const [dateFilter, setDateFilter] = useState({ debut: "", fin: "" })
   const [activeTab, setActiveTab] = useState("toutes")
-  const [filteredMissions, setFilteredMissions] = useState<Mission[]>(missions)
+  const [filteredMissions, setFilteredMissions] = useState<Mission[]>([])
   const [activeFilters, setActiveFilters] = useState<string[]>([])
   const [showFilters, setShowFilters] = useState(false)
 
   // Toast
   const { toast } = useToast()
 
-  // Effet pour charger les missions depuis localStorage
+  // Effet pour charger les missions depuis le service
   useEffect(() => {
-    try {
-      const storedMissions = localStorage.getItem("sgMissions")
-      if (storedMissions) {
-        const parsedMissions = JSON.parse(storedMissions)
-        setMissions((prevMissions) => {
-          // Fusionner les missions stockées avec les missions par défaut
-          // en évitant les doublons basés sur l'ID
-          const existingIds = new Set(prevMissions.map((mission) => mission.id))
-          const newMissions = parsedMissions.filter((mission: Mission) => !existingIds.has(mission.id))
-          return [...newMissions, ...prevMissions]
-        })
-      }
-    } catch (error) {
-      console.error("Erreur lors du chargement des missions:", error)
-    }
+    const allMissions = dataService.getAllMissions()
+    setMissions(allMissions)
   }, [])
 
   // Effet pour filtrer les missions
@@ -215,18 +140,8 @@ export default function SGMissions() {
 
   // Fonction pour approuver une mission
   const handleApproveMission = (id: string) => {
-    setMissions(missions.map((mission) => (mission.id === id ? { ...mission, statut: "Approuvée" } : mission)))
-
-    // Mettre à jour le localStorage
-    try {
-      const storedMissions = JSON.parse(localStorage.getItem("sgMissions") || "[]")
-      const updatedMissions = storedMissions.map((mission: Mission) =>
-        mission.id === id ? { ...mission, statut: "Approuvée" } : mission,
-      )
-      localStorage.setItem("sgMissions", JSON.stringify(updatedMissions))
-    } catch (error) {
-      console.error("Erreur lors de la mise à jour des missions:", error)
-    }
+    dataService.updateMission(id, { statut: "Approuvée" })
+    setMissions(dataService.getAllMissions())
 
     toast({
       title: "Mission approuvée",
@@ -236,18 +151,8 @@ export default function SGMissions() {
 
   // Fonction pour rejeter une mission
   const handleRejectMission = (id: string, reason: string) => {
-    setMissions(missions.map((mission) => (mission.id === id ? { ...mission, statut: "Rejetée" } : mission)))
-
-    // Mettre à jour le localStorage
-    try {
-      const storedMissions = JSON.parse(localStorage.getItem("sgMissions") || "[]")
-      const updatedMissions = storedMissions.map((mission: Mission) =>
-        mission.id === id ? { ...mission, statut: "Rejetée" } : mission,
-      )
-      localStorage.setItem("sgMissions", JSON.stringify(updatedMissions))
-    } catch (error) {
-      console.error("Erreur lors de la mise à jour des missions:", error)
-    }
+    dataService.updateMission(id, { statut: "Rejetée", commentaires: reason })
+    setMissions(dataService.getAllMissions())
 
     toast({
       title: "Mission rejetée",
@@ -257,18 +162,8 @@ export default function SGMissions() {
 
   // Fonction pour mettre en cours une mission
   const handleProcessMission = (id: string) => {
-    setMissions(missions.map((mission) => (mission.id === id ? { ...mission, statut: "En cours" } : mission)))
-
-    // Mettre à jour le localStorage
-    try {
-      const storedMissions = JSON.parse(localStorage.getItem("sgMissions") || "[]")
-      const updatedMissions = storedMissions.map((mission: Mission) =>
-        mission.id === id ? { ...mission, statut: "En cours" } : mission,
-      )
-      localStorage.setItem("sgMissions", JSON.stringify(updatedMissions))
-    } catch (error) {
-      console.error("Erreur lors de la mise à jour des missions:", error)
-    }
+    dataService.updateMission(id, { statut: "En cours" })
+    setMissions(dataService.getAllMissions())
 
     toast({
       title: "Mission en cours",

@@ -7,14 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Plus, Search } from "lucide-react"
 import Link from "next/link"
 import { AttestationList } from "@/components/attestation-list"
-
-interface Attestation {
-  id: string
-  date: string
-  categorie: string
-  motif: string
-  statut: string
-}
+import { dataService, type Attestation } from "@/services/data-service"
 
 export default function EmployeAttestations() {
   // Données simulées pour un employé
@@ -25,45 +18,17 @@ export default function EmployeAttestations() {
   }
 
   // État pour les attestations
-  const [attestations, setAttestations] = useState<Attestation[]>([
-    {
-      id: "ATT-2025-001",
-      date: "18/03/2025",
-      categorie: "Employé actif",
-      motif: "Démarche administrative",
-      statut: "En attente",
-    },
-    {
-      id: "ATT-2025-005",
-      date: "10/03/2025",
-      categorie: "Employé actif",
-      motif: "Autre",
-      statut: "Complétée",
-    },
-  ])
+  const [attestations, setAttestations] = useState<Attestation[]>([])
 
   // État pour la recherche
   const [searchQuery, setSearchQuery] = useState("")
-  const [filteredAttestations, setFilteredAttestations] = useState<Attestation[]>(attestations)
+  const [filteredAttestations, setFilteredAttestations] = useState<Attestation[]>([])
 
-  // Effet pour charger les attestations depuis localStorage
+  // Effet pour charger les attestations depuis le service
   useEffect(() => {
-    try {
-      const storedAttestations = localStorage.getItem("employeAttestations")
-      if (storedAttestations) {
-        const parsedAttestations = JSON.parse(storedAttestations)
-        setAttestations((prevAttestations) => {
-          // Fusionner les attestations stockées avec les attestations par défaut
-          // en évitant les doublons basés sur l'ID
-          const existingIds = new Set(prevAttestations.map((att) => att.id))
-          const newAttestations = parsedAttestations.filter((att: Attestation) => !existingIds.has(att.id))
-          return [...newAttestations, ...prevAttestations]
-        })
-      }
-    } catch (error) {
-      console.error("Erreur lors du chargement des attestations:", error)
-    }
-  }, [])
+    const userAttestations = dataService.getAttestationsByEmail(user.email)
+    setAttestations(userAttestations)
+  }, [user.email])
 
   // Effet pour filtrer les attestations
   useEffect(() => {
